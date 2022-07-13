@@ -140,7 +140,7 @@ int renderer::init()
 		return -1;
 
 	/* Create a windowed mode window and its OpenGL context */
-	window = glfwCreateWindow(1280, 720, "Gravity Simulator 3D", NULL, NULL);
+	window = glfwCreateWindow(1920, 1080, "Mountain Generator", NULL, NULL);
 	if (!window) // Has the window been created?
 	{
 		fprintf(stderr, "Failed to open GLFW window.\n");
@@ -249,11 +249,11 @@ renderer::Camera::Camera()
 	Camera::windowWidth = 1;
 	Camera::windowHeight = 1;
 
-	Camera::position = glm::vec3(0, 3, 5);
+	Camera::position = glm::vec3(0, 30, 50);
 	Camera::horizontalAngle = 3.14f;
 	Camera::verticalAngle = 0.0f;
 	Camera::fov = 45.0f;
-	Camera::speed = 3.0f; // 3 units / second
+	Camera::speed = 15.0f; // 3 units / second
 	Camera::mouseSpeed = 0.005f;
 	Camera::viewMatrix;
 	Camera::ProjectionMatrix;
@@ -390,7 +390,7 @@ void renderer::renderGrid(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 	glEnd();
 
 	glLineWidth(1);
-	glUniform3f(shader.ModelColorUniformID, 0.75f, 0.75f, 0.75f);
+	glUniform3f(shader.ModelColorUniformID, 0.8f, 0.9f, 1.0f);
 	glBegin(GL_LINE_STRIP);
 	for (float i = -1000; i <= 1000; i += 1)
 	{
@@ -411,7 +411,7 @@ void renderer::renderGrid(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 
 void renderer::renderAll()
 {
-	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+	glClearColor(0.52f, 0.8f, 0.95f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
 	glEnable(GL_DEPTH_TEST);
 	glUseProgram(shader.ProgramID);

@@ -13,7 +13,7 @@
 #include <thread>
 
 #include "../simulation/simulation.hpp"
-#include "baseModels/cube.h"
+#include "models/cube.h"
 
 namespace renderer
 {

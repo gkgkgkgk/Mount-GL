@@ -3,7 +3,13 @@
 
 Simulation::Simulation()
 {
-    voxels.push_back(new Voxel(glm::vec3(1, 0, 0)));
+    for (int i = 0; i < 50; i++)
+    {
+        for (int j = 0; j < 50; j++)
+        {
+            voxels.push_back(new Voxel(glm::vec3(i * 0.1f, 0, j * 0.1f)));
+        }
+    }
 }
 
 Simulation::~Simulation()

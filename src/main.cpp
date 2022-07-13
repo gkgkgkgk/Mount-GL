@@ -2,7 +2,7 @@
 // cat /etc/resolv.conf, export DISPLAY=172.25.96.1:0.0
 // export MESA_GL_VERSION_OVERRIDE=3.3
 
-#include "rendering/baseModels/cube.h"
+#include "rendering/models/cube.h"
 #include "rendering/renderer.h"
 
 int main(void)
