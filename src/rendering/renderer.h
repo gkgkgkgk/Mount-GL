@@ -12,8 +12,7 @@
 #include <chrono>
 #include <thread>
 
-#include "../universe/universe.h"
-#include "../universe/mass_body.h"
+#include "../simulation/simulation.hpp"
 #include "baseModels/cube.h"
 
 namespace renderer
@@ -38,20 +37,10 @@ namespace renderer
 		GLuint LightRadiusUniformID;
 	};
 
-	// Shader used to render star spheres
-	struct StarShader
-	{
-		GLuint ProgramID;
-		GLuint MatrixUniformID;
-		GLuint ModelMatrixUniformID;
-		GLuint ViewMatrixUniformID;
-	};
-
 	struct Camera
 	{
 		float fov;
 		int windowWidth, windowHeight;
-		// Stuff that is computed for every frame
 		glm::vec3 position;
 		glm::mat4 viewMatrix;
 		float horizontalAngle;
@@ -66,25 +55,20 @@ namespace renderer
 	};
 
 	int init();
-	void renderModel(RenderModel model, glm::mat4 projectionMatrix, glm::mat4 viewMatrix, glm::mat4 modelMatrix, Color color);
-	void renderBody(MassBody *body, glm::mat4 projectionMatrix);
+	void renderVoxel(Voxel *voxel, glm::mat4 projectionMatrix);
 	void renderStars(glm::mat4 projectionMatrix);
 	void renderGrid(glm::mat4 projectionMatrix, glm::mat4 viewMatrix);
 	void renderAll();
-	void preRender();
-	void setUniverse(Universe *universe);
+	void setSimulation(Simulation *simulation);
 	void terminate();
 
 	GLFWwindow *getWindow();
 
 	extern Camera camera;
-	extern Universe *loadedUniverse;
+	extern Simulation *simulation;
 	extern GLFWwindow *window;
 
 	extern Shader shader;
-
-	extern std::vector<Cube *> bodyLODModels; // Array of spheres with different resolutions used to render bodies
-
 	extern GLuint FramebufferID;
 	extern GLuint ColorBufferTextureID;
 	extern GLuint EmissionBufferTextureID;

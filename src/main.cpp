@@ -4,9 +4,6 @@
 
 #include "rendering/baseModels/cube.h"
 #include "rendering/renderer.h"
-#include "rendering/color.h"
-
-#include "universe/scene_loader.h"
 
 int main(void)
 {
@@ -18,16 +15,15 @@ int main(void)
 
 	GLFWwindow *window = renderer::getWindow();
 
-	Universe *universe = loadScene("../Scenes/default.scene");
-
-	renderer::setUniverse(universe);
+	Simulation *simulation = new Simulation();
+	renderer::setSimulation(simulation);
 
 	while (!glfwWindowShouldClose(window))
 	{
 		renderer::renderAll();
 	}
 
-	delete renderer::loadedUniverse;
+	delete renderer::simulation;
 
 	renderer::terminate();
 

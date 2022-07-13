@@ -1,6 +1,6 @@
 #include "renderer.h"
 
-Universe *renderer::loadedUniverse;
+Simulation *renderer::simulation;
 GLFWwindow *renderer::window;
 
 renderer::Shader renderer::shader;
@@ -15,18 +15,12 @@ GLuint renderer::rbo;
 int renderer::windowWidth;
 int renderer::windowHeight;
 
-std::vector<Cube *> renderer::bodyLODModels;
+Cube *voxelModel;
 
 double lastTime; // Used for deltaTime calculation
 
-// Usually nullptr, but has a value when the user is currently spawning an object and settings its parameters
-MassBody *spawnedBody;
-
-// This function creates an OpenGL program from a vertex and a fragment shader and returns its ID
 GLuint LoadShaderProgram(const char *vertex_file_path, const char *fragment_file_path)
 {
-
-	// Create the shaders
 	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 
@@ -119,16 +113,6 @@ GLuint LoadShaderProgram(const char *vertex_file_path, const char *fragment_file
 	return ProgramID;
 }
 
-void abortSpawn()
-{
-	delete spawnedBody;
-	spawnedBody = nullptr;
-}
-
-void resizeCallback(GLFWwindow *window, int width, int height)
-{
-}
-
 void framebufferSizeCallback(GLFWwindow *window, int width, int height)
 {
 	glViewport(0, 0, width, height);
@@ -174,7 +158,6 @@ int renderer::init()
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
 	glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
-	glfwSetWindowSizeCallback(window, resizeCallback);
 	glfwSetWindowAspectRatio(window, 16, 9);
 
 	glewInit();
@@ -246,10 +229,7 @@ int renderer::init()
 	camera.windowWidth = windowWidth;
 	camera.windowHeight = windowHeight;
 
-	for (int i = 0; i < 4; i++)
-	{
-		bodyLODModels.push_back(new Cube());
-	}
+	voxelModel = (new Cube());
 
 	lastTime = glfwGetTime();
 
@@ -350,63 +330,35 @@ void renderer::Camera::Update(double mouseX, double mouseY, float deltaTime)
 double previousMouseX = 0;
 double previousMouseY = 0;
 
-void renderer::setUniverse(Universe *universe)
+void renderer::setSimulation(Simulation *simulation)
 {
-	renderer::loadedUniverse = universe;
+	renderer::simulation = simulation;
 }
 
-// Requires the default shader to be bound
-void renderer::renderModel(RenderModel model, glm::mat4 projectionMatrix, glm::mat4 viewMatrix, glm::mat4 modelMatrix, Color color)
-{
-	// Our ModelViewProjection : multiplication of our 3 matrices
-	glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix; // Remember, matrix multiplication is the other way around
-
-	MassBody *emittingBody = loadedUniverse->GetEmissiveBody();
-
-	// Send our transformation to the currently bound shader, in the "MVP" uniform
-	// This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
-	glUniformMatrix4fv(shader.MatrixUniformID, 1, GL_FALSE, &mvp[0][0]);
-	glUniformMatrix4fv(shader.ModelMatrixUniformID, 1, GL_FALSE, &modelMatrix[0][0]);
-	glUniformMatrix4fv(shader.ViewMatrixUniformID, 1, GL_FALSE, &viewMatrix[0][0]);
-	glUniform3f(shader.LightColorUniformID, emittingBody->color.red, emittingBody->color.green, emittingBody->color.blue);
-	glUniform3f(shader.ModelColorUniformID, color.red, color.green, color.blue);
-
-	glUniform3f(shader.LightPosUniformID, emittingBody->position.x, emittingBody->position.y, emittingBody->position.z);
-	glUniform1f(shader.LightRadiusUniformID, emittingBody->radius);
-
-	glBindVertexArray(model.VertexArrayID);
-
-	// Bind the model index buffer
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.IndexBufferID);
-
-	// Draw the triangles !
-	glDrawElements(
-		GL_TRIANGLES,		   // mode
-		model.GetIndexCount(), // index count
-		GL_UNSIGNED_INT,	   // type
-		(void *)0			   // element array buffer offset
-	);
-}
-
-void renderer::renderBody(MassBody *body, glm::mat4 projectionMatrix)
+void renderer::renderVoxel(Voxel *body, glm::mat4 projectionMatrix)
 {
 	glm::mat4 modelMatrix = glm::mat4(1);
 
 	modelMatrix = glm::translate(modelMatrix, body->position);
-	modelMatrix = glm::scale(modelMatrix, glm::vec3(body->radius));
 
-	glUniform1i(shader.OccluderCountUniformID, body->occluders.size());
-	for (unsigned int i = 0; i < body->occluders.size(); i++)
-	{
-		MassBody *occluder = body->occluders[i];
-		glUniform3f(shader.OccluderPositionsUniformIDs[i], occluder->position.x, occluder->position.y, occluder->position.z);
-		glUniform1f(shader.OccluderRadiusesUniformIDs[i], occluder->radius);
-	}
+	glm::mat4 mvp = projectionMatrix * camera.viewMatrix * modelMatrix;
 
-	float distanceFromCamera = glm::distance(camera.position, body->position) - body->radius;
+	glUniformMatrix4fv(shader.MatrixUniformID, 1, GL_FALSE, &mvp[0][0]);
+	glUniformMatrix4fv(shader.ModelMatrixUniformID, 1, GL_FALSE, &modelMatrix[0][0]);
+	glUniformMatrix4fv(shader.ViewMatrixUniformID, 1, GL_FALSE, &camera.viewMatrix[0][0]);
 
-	renderModel(*bodyLODModels[(int)fminf(fmaxf(distanceFromCamera / (body->radius * 8.0f), 0.0f), 3.0f)], projectionMatrix, camera.viewMatrix, modelMatrix, body->color); // The weird looking formula is for choosing the right LOD model based on distance from camera and radius. I just tried different configurations out to try to find the right balance.
+	glBindVertexArray((*voxelModel).VertexArrayID);
 
+	// Bind the model index buffer
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, (*voxelModel).IndexBufferID);
+
+	// Draw the triangles !
+	glDrawElements(
+		GL_TRIANGLES,				   // mode
+		(*voxelModel).GetIndexCount(), // index count
+		GL_UNSIGNED_INT,			   // type
+		(void *)0					   // element array buffer offset
+	);
 	glUniform1i(shader.OccluderCountUniformID, 0);
 }
 
@@ -414,12 +366,8 @@ void renderer::renderBody(MassBody *body, glm::mat4 projectionMatrix)
 void renderer::renderGrid(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 {
 	glm::mat4 modelMatrix = glm::mat4(1);
+	glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
 
-	// Our ModelViewProjection : multiplication of our 3 matrices
-	glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix; // Remember, matrix multiplication is the other way around
-
-	// Send our transformation to the currently bound shader, in the "MVP" uniform
-	// This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
 	glUniformMatrix4fv(shader.MatrixUniformID, 1, GL_FALSE, &mvp[0][0]);
 	glUniformMatrix4fv(shader.ModelMatrixUniformID, 1, GL_FALSE, &modelMatrix[0][0]);
 	glUniformMatrix4fv(shader.ViewMatrixUniformID, 1, GL_FALSE, &viewMatrix[0][0]);
@@ -441,11 +389,10 @@ void renderer::renderGrid(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 	}
 	glEnd();
 
-	// TODO Only render grid where the camera is (at the moment a large fixed grid is drawn at the center of the world)
 	glLineWidth(1);
-	glUniform3f(shader.ModelColorUniformID, 1.0f, 1.0f, 1.0f);
+	glUniform3f(shader.ModelColorUniformID, 0.75f, 0.75f, 0.75f);
 	glBegin(GL_LINE_STRIP);
-	for (float i = -1000; i <= 1000; i += 10)
+	for (float i = -1000; i <= 1000; i += 1)
 	{
 		for (float j = -1000; j <= 1000; j += 100)
 		{
@@ -477,22 +424,16 @@ void renderer::renderAll()
 	double mouseX, mouseY;
 	glfwGetCursorPos(window, &mouseX, &mouseY);
 
-	// Projection matrix : Camera Field of View, right aspect ratio, display range : 0.1 unit <-> 100 units
 	glm::mat4 projectionMatrix = glm::perspective(renderer::camera.fov, (float)windowWidth / (float)windowHeight, 0.1f, 500.0f);
 
 	camera.Update(mouseX, mouseY, (float)deltaTime);
 
 	renderGrid(projectionMatrix, camera.viewMatrix);
 
-	std::vector<MassBody *> bodies = *loadedUniverse->GetBodies();
-	for (unsigned int i = 0; i < bodies.size(); i++)
+	std::vector<Voxel *> voxels = *simulation->GetVoxels();
+	for (unsigned int i = 0; i < voxels.size(); i++)
 	{
-		renderBody(bodies[i], projectionMatrix);
-	}
-
-	if (spawnedBody != nullptr)
-	{
-		renderBody(spawnedBody, projectionMatrix);
+		renderVoxel(voxels[i], projectionMatrix);
 	}
 
 	/* Swap front and back buffers */
@@ -511,19 +452,10 @@ void renderer::renderAll()
 		previousMouseX = mouseX;
 		previousMouseY = mouseY;
 	}
-
-	// Universe tick
-	if (renderer::loadedUniverse != nullptr)
-		renderer::loadedUniverse->tick(deltaTime);
 }
 
 void renderer::terminate()
 {
-	for (unsigned int i = 0; i < bodyLODModels.size(); i++)
-	{
-		delete bodyLODModels[i];
-	}
-
 	glDeleteTextures(1, &ColorBufferTextureID);
 	glDeleteTextures(1, &EmissionBufferTextureID);
 	glDeleteFramebuffers(1, &FramebufferID);
